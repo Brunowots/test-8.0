@@ -181,19 +181,15 @@ void ProtocolLogin::onRecvFirstMessage(NetworkMessage& msg)
 	enableXTEAEncryption();
 	setXTEAKey(key);
 
-	std::cout << "Version: " << version << std::endl;
-	std::cout << "Version Min: " << g_config.getNumber(ConfigManager::VERSION_MIN) << std::endl;
-	std::cout << "Version Max: " << g_config.getNumber(ConfigManager::VERSION_MAX) << std::endl;
-
-if (version < g_config.getNumber(ConfigManager::VERSION_MIN) ||
-    version > g_config.getNumber(ConfigManager::VERSION_MAX)) {
-    std::ostringstream ss;
-    ss << "Only clients with protocol "
-       << g_config.getString(ConfigManager::VERSION_STR)
-       << " allowed!";
-    disconnectClient(ss.str());
-    return;
-}
+	if (version < g_config.getNumber(ConfigManager::VERSION_MIN) ||
+	    version > g_config.getNumber(ConfigManager::VERSION_MAX)) {
+	    std::ostringstream ss;
+	    ss << "Only clients with protocol "
+	       << g_config.getString(ConfigManager::VERSION_STR)
+	       << " allowed!";
+	    disconnectClient(ss.str());
+	    return;
+	}
 
 	if (g_game.getGameState() == GAME_STATE_STARTUP) {
 		disconnectClient("Gameworld is starting up. Please wait.");
@@ -221,19 +217,34 @@ if (version < g_config.getNumber(ConfigManager::VERSION_MIN) ||
 		disconnectClient(ss.str());
 		return;
 	}
-	
-	std::string accountName = msg.getString();
+
+	uint32_t accountNumber = msg.get<uint32_t>();
+	if (accountNumber == 0) {
+		disconnectClient("Invalid account number.");
+		return;
+	}
+
+	std::string accountName = std::to_string(accountNumber);
+	if (accountName.empty()) {
+		disconnectClient("Invalid account number.");
+		return;
+	}
+
 	std::string password = msg.getString();
-	
+	if (password.empty()) {
+		disconnectClient("Invalid password.");
+		return;
+	}
+
 	auto thisPtr = std::static_pointer_cast<ProtocolLogin>(shared_from_this());
-	if (accountName.empty()) 
-	{		
-		if (!g_config.getBoolean(ConfigManager::ENABLE_LIVE_CASTING)) 
+	if (accountName.empty())
+	{
+		if (!g_config.getBoolean(ConfigManager::ENABLE_LIVE_CASTING))
 			disconnectClient("Cast System is disabled.");
 		else
 			g_dispatcher.addTask(createTask(std::bind(&ProtocolLogin::getCastingStreamsList, thisPtr)));
 		return;
 	}
-	
+
 	g_dispatcher.addTask(createTask(std::bind(&ProtocolLogin::getCharacterList, thisPtr, accountName, password)));
 }

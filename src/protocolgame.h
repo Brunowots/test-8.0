@@ -61,7 +61,7 @@ class ProtocolGame final : public Protocol
 		// static protocol information
 		enum {server_sends_first = true};
 		enum {protocol_identifier = 0}; // Not required as we send first
-		enum {use_checksum = true};
+		enum {use_checksum = false};
 		static const char* protocol_name() {
 			return "gameworld protocol";
 		}
@@ -353,9 +353,14 @@ class ProtocolGame final : public Protocol
 
 		// Helpers so we don't need to bind every time
 		template <typename Callable, typename... Args>
-		void addGameTask(Callable function, Args&&... args) {
-			g_dispatcher.addTask(createTask(std::bind(function, &g_game, std::forward<Args>(args)...)));
-		}
+		void addGameTask(Callable function, Args&&... args)
+		{
+		    g_dispatcher.addTask(
+		        createTask(std::function<void()>(
+		            std::bind(function, &g_game, std::forward<Args>(args)...)
+        ))
+    );
+}
 
 		template <typename Callable, typename... Args>
 		void addGameTaskTimed(uint32_t delay, Callable function, Args&&... args) {
@@ -379,10 +384,7 @@ class ProtocolGame final : public Protocol
 		Player* player = nullptr;
 
 		uint32_t eventConnect = 0;
-		uint32_t challengeTimestamp = 0;
 		uint16_t version = CLIENT_VERSION_MIN;
-
-		uint8_t challengeRandom = 0;
 
 		bool debugAssertSent = false;
 		bool acceptPackets = false;
